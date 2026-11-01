@@ -1,7 +1,7 @@
 {
-  "name": "Family Card Score Keeper",
-  "short_name": "Card Scores",
-  "description": "Score counter for our family card game",
+  "name": "Contract Score Keeper",
+  "short_name": "Contract",
+  "description": "Contract score keeper",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",
