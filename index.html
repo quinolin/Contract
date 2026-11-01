@@ -1,0 +1,610 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Family Card Score Keeper</title>
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#1f6b4a">
+<meta name="mobile-web-app-capable" content="yes">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<style>
+:root{
+  --bg:#f4f1ea; --card:#ffffff; --ink:#1f2a24; --muted:#6b756f; --line:#dcd6c8;
+  --accent:#1f6b4a; --accent-ink:#ffffff; --lead:#e6f3ec; --warn:#a33a2c;
+}
+@media (prefers-color-scheme: dark){
+  :root{ --bg:#141a17; --card:#1e2622; --ink:#e9efe9; --muted:#97a39b; --line:#33403a;
+         --accent:#4fb283; --accent-ink:#0d1712; --lead:#23382d; --warn:#e5806f; }
+}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--bg);color:var(--ink);font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;-webkit-tap-highlight-color:transparent}
+body{padding:12px 12px 84px;max-width:640px;margin:0 auto;font-size:16px}
+h1{font-size:20px;margin:4px 0 12px}
+h2{font-size:16px;margin:18px 0 8px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:12px;margin-bottom:12px}
+.muted{color:var(--muted);font-size:14px}
+button{font:inherit;border:1px solid var(--line);background:var(--card);color:var(--ink);border-radius:10px;padding:10px 14px;cursor:pointer}
+button.primary{background:var(--accent);color:var(--accent-ink);border-color:var(--accent);font-weight:600}
+button:disabled{opacity:.4;cursor:not-allowed}
+button.danger{color:var(--warn);border-color:var(--warn)}
+button.sm{padding:6px 10px;font-size:14px}
+input[type=text],input[type=search],select,textarea{font:inherit;width:100%;padding:10px;border:1px solid var(--line);border-radius:10px;background:var(--card);color:var(--ink)}
+textarea{min-height:110px;font-family:ui-monospace,Menlo,monospace;font-size:12px}
+.row{display:flex;gap:8px;align-items:center}
+.row>*{flex:1}
+.row>button{flex:none}
+.seg{display:flex;border:1px solid var(--line);border-radius:12px;overflow:hidden;margin-bottom:12px}
+.seg button{flex:1;border:0;border-radius:0;background:var(--card)}
+.seg button.on{background:var(--accent);color:var(--accent-ink);font-weight:600}
+.counts{display:flex;gap:8px;margin-bottom:12px}
+.counts button{flex:1;padding:12px 0;font-weight:600}
+.counts button.on{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+.slot{margin-bottom:10px}
+.slot label{display:block;font-size:13px;color:var(--muted);margin-bottom:4px}
+.slot input[type=text]{margin-top:6px}
+table{width:100%;border-collapse:collapse;table-layout:fixed}
+th,td{padding:6px 2px;text-align:center;border-bottom:1px solid var(--line);font-size:14px}
+th{font-size:12px;color:var(--muted);font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+th.rc,td.rc{width:46%;text-align:left;padding-left:4px}
+.table-wrap th.rc,.table-wrap td.rc{width:auto}
+td.rc small{display:block;color:var(--muted);font-size:11px;line-height:1.2}
+td.rc b{font-size:13px}
+input.sc{width:100%;max-width:62px;text-align:center;padding:8px 2px;border:1px solid var(--line);border-radius:8px;background:var(--card);color:var(--ink);font:inherit;font-size:16px}
+tr.totals td{font-weight:700;font-size:16px;border-bottom:0;border-top:2px solid var(--line)}
+td.lead,.lead{background:var(--lead)}
+.pill{display:inline-block;background:var(--lead);color:var(--accent);border-radius:99px;padding:2px 10px;font-size:13px;font-weight:600}
+.roundtext{font-size:26px;font-weight:700;text-align:center;margin:10px 0 4px;line-height:1.25}
+.roundnum{text-align:center;color:var(--muted)}
+.nav{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px}
+.prow{display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--line)}
+.prow:last-child{border-bottom:0}
+.prow .nm{flex:1;font-weight:600;overflow:hidden;text-overflow:ellipsis}
+.prow .tt{width:70px;text-align:right;color:var(--muted);font-size:14px}
+.prow input.sc{max-width:84px}
+.tabs{position:fixed;left:0;right:0;bottom:0;display:flex;background:var(--card);border-top:1px solid var(--line);padding-bottom:env(safe-area-inset-bottom)}
+.tabs button{flex:1;border:0;border-radius:0;padding:16px 0;background:transparent;color:var(--muted)}
+.tabs button.on{color:var(--accent);font-weight:700}
+.overlay{position:fixed;inset:0;background:rgba(0,0,0,.5);display:flex;align-items:center;justify-content:center;padding:20px;z-index:10}
+.modal{background:var(--card);border-radius:16px;padding:18px;max-width:380px;width:100%}
+.modal p{margin:0 0 14px}
+.names li{display:flex;align-items:center;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--line)}
+.names{list-style:none;margin:0;padding:0}
+.hgame{cursor:pointer}
+.hgame .top{display:flex;justify-content:space-between;gap:8px}
+.hgame .scores{margin-top:6px;font-size:14px}
+.hgame .scores span{display:inline-block;margin-right:12px}
+.note{font-size:13px;color:var(--muted);margin-top:6px}
+.err{color:var(--warn);font-size:14px;margin-top:6px}
+
+/* game layout */
+.gw{display:flex;flex-direction:column;gap:8px}
+.gw .side{display:contents}
+.gw .banner{order:0;margin:0;padding:8px 12px;font-size:14px}
+.gw .hint{order:1;display:none;font-size:13px;color:var(--muted);text-align:center}
+.gw .seg{order:1;margin:0}
+.gw .main{order:2;flex:1;min-height:0;display:flex;flex-direction:column;padding:6px;margin:0}
+.gw .endbtn{order:3;width:100%}
+.gw .hint.show{display:block}
+body.land{max-width:none;padding-top:6px}
+body.land .tabs button{padding:10px 0}
+.gw.land{flex-direction:row}
+.gw.land .side{display:flex;flex-direction:column;gap:8px;width:150px;flex:none}
+.gw.land .main{order:0}
+.gw.land .seg{flex-direction:column}
+.gw.land .hint{display:none !important}
+.grid{display:grid;flex:1;width:100%;min-height:0;grid-template-rows:repeat(8,1fr);grid-template-columns:minmax(0,.7fr) repeat(var(--np),minmax(0,1fr))}
+.cell{display:flex;align-items:center;justify-content:center;border-bottom:1px solid var(--line);border-right:1px solid var(--line);min-width:0;overflow:hidden}
+.cell.hd{font-weight:700;color:var(--muted);font-size:var(--nf,14px);white-space:nowrap}
+.cell.hd span{overflow:hidden;text-overflow:ellipsis;max-width:96%}
+.cell.rn{font-weight:800;font-size:var(--rf,20px)}
+.cell.tl,.cell.tot{border-bottom:0;border-top:2px solid var(--line);font-weight:800}
+.cell.tl{font-size:var(--nf,14px)}
+.cell.tot{font-size:var(--sf,20px)}
+.grid input.sc{width:90%;max-width:none;height:80%;padding:0;font-size:var(--sf,20px)}
+.cv{display:flex;flex-direction:column;flex:1;min-height:0}
+.cv .nav{flex:none;margin-bottom:4px}
+.cv .nav button{font-size:18px;padding:12px 14px}
+.cv .roundnum{font-size:24px;font-weight:800;color:var(--ink)}
+.cv .roundtext{flex:none;font-size:30px;margin:6px 0 8px}
+.cv .plist{flex:1;display:flex;flex-direction:column;min-height:0}
+.cv .prow{flex:none;height:var(--rh,56px);padding:0 4px}
+.cv .prow .nm{font-size:var(--nf,20px)}
+.cv .prow .tt{width:auto;font-size:var(--tf,16px);white-space:nowrap}
+.cv input.sc{width:34%;max-width:none;height:var(--ih,44px);font-size:var(--sf,26px);padding:0}
+
+.cv .head{flex:none;border:2px solid var(--line);border-radius:14px;padding:8px 8px 6px;margin-bottom:10px;background:var(--card)}
+.cv .head .nav{margin-bottom:0}
+.cv .head .roundtext{margin:2px 0 4px}
+.cv .plist{gap:8px}
+.cv .prow{border:2px solid var(--line);border-radius:14px;padding:0 12px;background:var(--card)}
+.cv .prow:last-child{border:2px solid var(--line)}
+.cv .prow.lead{background:var(--lead)}
+.cell.sv{font-size:var(--sf,20px)}
+.modal ul{margin:0 0 14px;padding-left:20px}
+.modal li{margin-bottom:6px}
+.modal h3{margin:0 0 10px;font-size:18px}
+.cell.lc{border-right:0}
+.cell.c0{border-right:2px solid var(--line)}
+.cell.hd{border-bottom:2px solid var(--line);padding:0 1px}
+.cell.hd span{max-width:100%}
+.cell.tl span{font-size:var(--tlf,12px);white-space:nowrap}
+.cell.tl{font-size:var(--tlf,12px)}
+</style>
+</head>
+<body>
+<div id="app"></div>
+<div class="tabs" id="tabs"></div>
+
+<script>
+(function(){
+'use strict';
+
+var ROUNDS = [
+  '2 sets of 3',
+  '1 set of 3, 1 run of 4',
+  '3 sets of 3',
+  '1 run of 4, 2 sets of 3',
+  '2 runs of 4',
+  '1 run of 7, 1 set of 3'
+];
+var KEY = 'familycardscore.v1';
+var mem = null;
+
+function load(){
+  try { var s = localStorage.getItem(KEY); if (s) return JSON.parse(s); } catch(e){}
+  return mem || {names:[], games:[], current:null};
+}
+var S = load();
+if (!S.names) S.names = [];
+if (!S.games) S.games = [];
+function save(){
+  mem = S;
+  try { localStorage.setItem(KEY, JSON.stringify(S)); } catch(e){}
+}
+
+var tab = 'game';
+// Set to true to bring back the Test mode checkbox on the New game screen.
+var TEST_MODE_ENABLED = false;
+var notice = '';
+var setup = {test:false, n:4, slots:['','','','','',''], newText:['','','','','',''], err:''};
+var openGames = {};
+var searchQ = '';
+var exportText = '';
+var importMsg = '';
+
+function esc(s){ return String(s).replace(/[&<>"']/g, function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]; }); }
+function $(sel, root){ return (root||document).querySelector(sel); }
+function $$(sel, root){ return Array.prototype.slice.call((root||document).querySelectorAll(sel)); }
+function uid(){ return Date.now().toString(36) + Math.random().toString(36).slice(2,7); }
+function fmtDate(iso){
+  var d = new Date(iso);
+  return d.toLocaleDateString(undefined,{year:'numeric',month:'short',day:'numeric'}) + ' ' +
+         d.toLocaleTimeString(undefined,{hour:'numeric',minute:'2-digit'});
+}
+function sortNames(){ S.names.sort(function(a,b){ return a.localeCompare(b, undefined, {sensitivity:'base'}); }); }
+
+function totals(scores, np){
+  var t = [], any = false;
+  for (var p=0;p<np;p++){
+    var sum = 0;
+    for (var r=0;r<6;r++){ var v = scores[r][p]; if (v !== null && v !== undefined){ sum += v; any = true; } }
+    t.push(sum);
+  }
+  return {t:t, any:any};
+}
+function leaders(t, any){
+  if (!any) return [];
+  var m = Math.min.apply(null, t);
+  var out = [];
+  t.forEach(function(v,i){ if (v === m) out.push(i); });
+  return out;
+}
+function roundComplete(scores, r, np){
+  for (var p=0;p<np;p++){ if (scores[r][p] === null || scores[r][p] === undefined) return false; }
+  return true;
+}
+function firstOpenRound(g){
+  for (var r=0;r<6;r++){ if (!roundComplete(g.scores, r, g.players.length)) return r; }
+  return 5;
+}
+function allComplete(g){
+  for (var r=0;r<6;r++){ if (!roundComplete(g.scores, r, g.players.length)) return false; }
+  return true;
+}
+
+/* ---------- modal ---------- */
+function modal(text, okLabel, onOk){
+  var o = document.createElement('div');
+  o.className = 'overlay';
+  o.innerHTML = '<div class="modal"><p>'+esc(text)+'</p><div class="row"><button id="mc">Cancel</button><button id="mo" class="primary">'+esc(okLabel)+'</button></div></div>';
+  document.body.appendChild(o);
+  $('#mc', o).onclick = function(){ o.remove(); };
+  $('#mo', o).onclick = function(){ o.remove(); onOk(); };
+}
+
+function notify(title, lines){
+  var o = document.createElement('div');
+  o.className = 'overlay';
+  o.innerHTML = '<div class="modal"><h3>'+esc(title)+'</h3><ul>'+lines.map(function(l){ return '<li>'+esc(l)+'</li>'; }).join('')+'</ul><button class="primary" id="mk" style="width:100%">OK</button></div>';
+  document.body.appendChild(o);
+  $('#mk', o).onclick = function(){ o.remove(); };
+}
+function joinNames(a){
+  if (a.length === 1) return a[0];
+  return a.slice(0,-1).join(', ') + ' and ' + a[a.length-1];
+}
+function validateRound(scores, r, players){
+  var errs = [], zeros = 0, bad = [];
+  players.forEach(function(p,i){
+    var v = scores[r][i];
+    if (v === 0) zeros++;
+    else if (v % 5 !== 0) bad.push(p);
+  });
+  if (zeros === 0) errs.push('No player has a score of 0.');
+  else if (zeros > 1) errs.push('Multiple players have a score of 0.');
+  if (bad.length === 1) errs.push('The score for ' + bad[0] + ' is incorrect.');
+  else if (bad.length > 1) errs.push('The scores for ' + joinNames(bad) + ' are incorrect.');
+  return errs;
+}
+
+/* ---------- tabs ---------- */
+function renderTabs(){
+  var t = $('#tabs');
+  var items = [['game','Game'],['history','History'],['names','Names']];
+  t.innerHTML = items.map(function(i){ return '<button data-tab="'+i[0]+'" class="'+(tab===i[0]?'on':'')+'">'+i[1]+'</button>'; }).join('');
+  $$('button', t).forEach(function(b){ b.onclick = function(){ tab = b.getAttribute('data-tab'); render(); window.scrollTo(0,0); }; });
+}
+
+/* ---------- game tab ---------- */
+function renderSetup(){
+  var h = '<h1>New game</h1>';
+  if (notice){ h += '<div class="card lead">'+esc(notice)+'</div>'; notice = ''; }
+  h += '<div class="card">'+(TEST_MODE_ENABLED ? '<label class="row" style="margin-bottom:12px;gap:10px"><input type="checkbox" id="testmode" style="flex:none;width:22px;height:22px"'+(setup.test?' checked':'')+'><span><b>Test mode</b><br><span class="muted">Game will NOT be saved to History</span></span></label>' : '')+'<div class="muted" style="margin-bottom:8px">Number of players</div><div class="counts">';
+  for (var n=2;n<=6;n++) h += '<button data-n="'+n+'" class="'+(setup.n===n?'on':'')+'">'+n+'</button>';
+  h += '</div>';
+  for (var i=0;i<setup.n;i++){
+    h += '<div class="slot"><label>Player '+(i+1)+'</label><select data-slot="'+i+'"><option value="">Choose player…</option>';
+    S.names.forEach(function(nm){ h += '<option value="'+esc(nm)+'"'+(setup.slots[i]===nm?' selected':'')+'>'+esc(nm)+'</option>'; });
+    h += '<option value="__new__"'+(setup.slots[i]==='__new__'?' selected':'')+'>+ New name…</option></select>';
+    if (setup.slots[i]==='__new__') h += '<input type="text" data-newtext="'+i+'" placeholder="Type a name" value="'+esc(setup.newText[i])+'">';
+    h += '</div>';
+  }
+  h += '<div class="err" id="serr">'+esc(setup.err)+'</div>';
+  h += '<button class="primary" id="start" style="width:100%;margin-top:8px">Start game</button></div>';
+  h += '<p class="note">Six rounds. Lowest total wins.</p>';
+  $('#app').innerHTML = h;
+
+  $$('[data-n]').forEach(function(b){ b.onclick = function(){ setup.n = parseInt(b.getAttribute('data-n'),10); setup.err=''; render(); }; });
+  $$('[data-slot]').forEach(function(s){ s.onchange = function(){ setup.slots[+s.getAttribute('data-slot')] = s.value; setup.err=''; render(); }; });
+  $$('[data-newtext]').forEach(function(t){ t.oninput = function(){ setup.newText[+t.getAttribute('data-newtext')] = t.value; }; });
+  if (TEST_MODE_ENABLED) $('#testmode').onchange = function(){ setup.test = this.checked; };
+  $('#start').onclick = startGame;
+}
+function startGame(){
+  var players = [];
+  for (var i=0;i<setup.n;i++){
+    var v = setup.slots[i] === '__new__' ? setup.newText[i].trim() : setup.slots[i];
+    if (!v){ setup.err = 'Choose or type a name for player '+(i+1)+'.'; $('#serr').textContent = setup.err; return; }
+    players.push(v);
+  }
+  var seen = {};
+  for (var j=0;j<players.length;j++){
+    var k = players[j].toLowerCase();
+    if (seen[k]){ setup.err = 'Each player needs a different name ("'+players[j]+'" is used twice).'; $('#serr').textContent = setup.err; return; }
+    seen[k] = true;
+  }
+  players.forEach(function(p){
+    var exists = S.names.some(function(n){ return n.toLowerCase() === p.toLowerCase(); });
+    if (!exists) S.names.push(p);
+  });
+  sortNames();
+  var scores = [];
+  for (var r=0;r<6;r++){ var row=[]; for (var q=0;q<players.length;q++) row.push(null); scores.push(row); }
+  S.current = {id:uid(), started:new Date().toISOString(), players:players, scores:scores, view:'scores', ri:0, test:setup.test};
+  save();
+  setup.slots = ['','','','','',''];
+  setup.newText = ['','','','','',''];
+  setup.err = '';
+  render();
+}
+
+function scoreInput(r,p,v){
+  return '<input class="sc" type="text" inputmode="numeric" pattern="[0-9]*" autocomplete="off" data-r="'+r+'" data-p="'+p+'" value="'+(v===null||v===undefined?'':v)+'" aria-label="Round '+(r+1)+' score">';
+}
+
+function renderGame(){
+  var g = S.current;
+  if (!g){ renderSetup(); return; }
+  var np = g.players.length;
+  var open = firstOpenRound(g);
+  var h = '<div class="gw" style="--np:'+np+'">';
+  h += '<div class="main">';
+  if (g.view === 'scores'){
+    h += '<div class="grid"><div class="cell hd c0"></div>';
+    g.players.forEach(function(p,pi){ h += '<div class="cell hd'+(pi===np-1?' lc':'')+'" title="'+esc(p)+'"><span>'+esc(p)+'</span></div>'; });
+    for (var r=0;r<6;r++){
+      h += '<div class="cell rn c0">'+(r+1)+'</div>';
+      for (var p=0;p<np;p++) h += '<div class="cell sv'+(p===np-1?' lc':'')+'">'+(g.scores[r][p]===null?'':g.scores[r][p])+'</div>';
+    }
+    h += '<div class="cell tl c0"><span>Total</span></div>';
+    for (var q=0;q<np;q++) h += '<div class="cell tot'+(q===np-1?' lc':'')+'" data-total="'+q+'">0</div>';
+    h += '</div>';
+  } else {
+    var ri = (typeof g.ri === 'number') ? g.ri : open;
+    h += '<div class="cv"><div class="head"><div class="nav"><button id="prev" '+(ri===0?'disabled':'')+'>‹ Prev</button><div class="roundnum">Round '+(ri+1)+' of 6</div><button id="next" '+((ri===5||!roundComplete(g.scores,ri,np))?'disabled':'')+'>Next ›</button></div>';
+    h += '<div class="roundtext">'+esc(ROUNDS[ri])+'</div></div><div class="plist">';
+    for (var p2=0;p2<np;p2++){
+      h += '<div class="prow"><div class="nm">'+esc(g.players[p2])+'</div><div class="tt">Total <b data-total="'+p2+'">0</b></div>'+scoreInput(ri,p2,g.scores[ri][p2])+'</div>';
+    }
+    h += '</div></div>';
+  }
+  h += '</div>';
+  h += '<div class="side">';
+  if (g.test) h += '<div class="card lead banner"><b>TEST MODE</b> — this game will not be saved to History.</div>';
+  if (np >= 5) h += '<div class="hint show">Rotate your phone for a wider view</div>';
+  h += '<div class="seg"><button data-view="scores" class="'+(g.view==='scores'?'on':'')+'">Scores</button><button data-view="round" class="'+(g.view==='round'?'on':'')+'">Round card</button></div>';
+  h += '<button class="primary endbtn" id="end">'+(g.test?'End test game (not saved)':'End game &amp; save final scores')+'</button>';
+  h += '</div></div>';
+  $('#app').innerHTML = h;
+
+  $$('[data-view]').forEach(function(b){ b.onclick = function(){
+    g.view = b.getAttribute('data-view');
+    if (g.view === 'round') g.ri = firstOpenRound(g);
+    save(); render();
+  }; });
+  if (g.view === 'round'){
+    $('#prev').onclick = function(){ g.ri = Math.max(0,g.ri-1); save(); render(); };
+    $('#next').onclick = function(){
+      var errs = validateRound(g.scores, g.ri, g.players);
+      if (errs.length){ notify('Check round '+(g.ri+1), errs); return; }
+      g.ri = Math.min(5,g.ri+1); save(); render();
+    };
+  }
+  $$('input.sc').forEach(function(inp){
+    inp.oninput = function(){
+      var clean = inp.value.replace(/[^0-9]/g,'').slice(0,3);
+      if (clean !== inp.value) inp.value = clean;
+      var r = +inp.getAttribute('data-r'), p = +inp.getAttribute('data-p');
+      g.scores[r][p] = clean === '' ? null : parseInt(clean,10);
+      save(); updateTotals();
+    };
+    inp.onfocus = function(){ try{ inp.select(); }catch(e){} };
+  });
+  $('#end').onclick = function(){
+    if (!allComplete(g)) return;
+    var all = [];
+    for (var rr=0; rr<6; rr++){
+      validateRound(g.scores, rr, g.players).forEach(function(m){ all.push('Round '+(rr+1)+': '+m); });
+    }
+    if (all.length){ notify('Fix these before ending the game', all); return; }
+    if (g.test) modal('End this test game? Nothing will be saved to History.', 'End test', endGame);
+    else modal('Save these as the final scores? The game will move to History and can no longer be edited.', 'Save game', endGame);
+  };
+  updateTotals();
+  fit();
+  requestAnimationFrame(fit);
+}
+
+function updateTotals(){
+  var g = S.current; if (!g) return;
+  var np = g.players.length;
+  var res = totals(g.scores, np);
+  var lead = leaders(res.t, res.any);
+  $$('[data-total]').forEach(function(el){
+    var p = +el.getAttribute('data-total');
+    el.textContent = res.t[p];
+    var target = el.classList.contains('cell') ? el : el.closest('.prow');
+    if (target) target.classList.toggle('lead', lead.indexOf(p) !== -1);
+  });
+  var btn = $('#end'); if (btn) btn.disabled = !allComplete(g);
+  var nx = $('#next');
+  if (nx && g.view === 'round') nx.disabled = (g.ri === 5) || !roundComplete(g.scores, g.ri, np);
+}
+
+var landscape = false;
+function clamp(v,lo,hi){ return Math.max(lo, Math.min(hi, v)); }
+function fit(){
+  var tabs = $('#tabs');
+  var tabsH = tabs ? tabs.offsetHeight : 56;
+  document.body.style.paddingBottom = (tabsH + 8) + 'px';
+  var gw = $('.gw'); if (!gw || !S.current) return;
+  var fa = document.activeElement;
+  if (!(fa && fa.classList && fa.classList.contains('sc'))) landscape = window.innerWidth > window.innerHeight;
+  gw.classList.toggle('land', landscape);
+  document.body.classList.toggle('land', landscape);
+  var np = S.current.players.length;
+  var top = gw.getBoundingClientRect().top + (window.pageYOffset || 0);
+  gw.style.height = Math.max(260, window.innerHeight - tabsH - top - 8) + 'px';
+  var maxLen = 3;
+  S.current.players.forEach(function(n){ if (n.length > maxLen) maxLen = n.length; });
+  var grid = $('.grid');
+  if (grid){
+    var W = grid.clientWidth, H = grid.clientHeight;
+    var rowH = H/8, colW = W/(np+0.7), rcW = colW*0.7;
+    var nameChars = Math.min(maxLen, 8);
+    var nf = clamp(Math.min(rowH*0.34, (colW-4)/(nameChars*0.66), 22), 9, 22);
+    var hdrs = $$('.cell.hd span').filter(function(el){ return el.textContent.length <= 8; });
+    grid.style.setProperty('--nf', nf+'px');
+    for (var guard=0; guard<30 && nf>8; guard++){
+      var over = hdrs.some(function(el){ return el.scrollWidth > el.clientWidth + 0.5; });
+      if (!over) break;
+      nf -= 0.5; grid.style.setProperty('--nf', nf+'px');
+    }
+    grid.style.setProperty('--sf', clamp(Math.min(rowH*0.38, colW*0.34), 12, 40)+'px');
+    grid.style.setProperty('--rf', clamp(Math.min(rowH*0.42, rcW*0.7), 14, 40)+'px');
+    grid.style.setProperty('--tlf', clamp(Math.min(nf, (rcW-6)/(5*0.62)), 8, 18)+'px');
+  }
+  var cv = $('.cv'), pl = $('.plist');
+  if (cv && pl){
+    var rh = Math.min(pl.clientHeight/np*0.75, 80), w = pl.clientWidth;
+    cv.style.setProperty('--rh', rh+'px');
+    cv.style.setProperty('--ih', clamp(rh*0.78, 34, 62)+'px');
+    cv.style.setProperty('--sf', clamp(rh*0.46, 16, 32)+'px');
+    cv.style.setProperty('--nf', clamp(Math.min(rh*0.34, (w*0.42)/(maxLen*0.58), 26), 13, 26)+'px');
+    cv.style.setProperty('--tf', clamp(rh*0.24, 12, 17)+'px');
+  }
+}
+var lastW = window.innerWidth;
+function onResize(){
+  var a = document.activeElement;
+  if (a && a.classList && a.classList.contains('sc') && window.innerWidth === lastW) return;
+  lastW = window.innerWidth;
+  fit();
+}
+window.addEventListener('resize', onResize);
+window.addEventListener('orientationchange', function(){ setTimeout(function(){ lastW = -1; onResize(); }, 200); });
+
+function endGame(){
+  var g = S.current; if (!g || !allComplete(g)) return;
+  if (g.test){
+    S.current = null; save();
+    notice = 'Test game ended. Nothing was saved to History.';
+    setup.test = false; tab = 'game'; render(); window.scrollTo(0,0); return;
+  }
+  var res = totals(g.scores, g.players.length);
+  var lead = leaders(res.t, true);
+  var rec = {
+    id:g.id, date:new Date().toISOString(), started:g.started, players:g.players,
+    scores:g.scores, totals:res.t,
+    winners: lead.map(function(i){ return g.players[i]; })
+  };
+  S.games.push(rec);
+  S.current = null;
+  save();
+  openGames[rec.id] = true;
+  tab = 'history';
+  render();
+  window.scrollTo(0,0);
+}
+
+/* ---------- history tab ---------- */
+function gameMatches(g, q){
+  if (!q) return true;
+  var hay = (g.players.join(' ') + ' ' + g.winners.join(' ') + ' ' + fmtDate(g.date) + ' ' + g.date.slice(0,10)).toLowerCase();
+  return q.toLowerCase().split(/\s+/).filter(Boolean).every(function(w){ return hay.indexOf(w) !== -1; });
+}
+function renderHistory(){
+  var h = '<h1>History</h1><input type="search" id="q" placeholder="Search by player or date…" value="'+esc(searchQ)+'">';
+  var list = S.games.slice().sort(function(a,b){ return b.date.localeCompare(a.date); }).filter(function(g){ return gameMatches(g, searchQ); });
+  h += '<p class="note" id="hcount">'+list.length+' of '+S.games.length+' game'+(S.games.length===1?'':'s')+'</p><div id="hlist">';
+  if (!S.games.length) h += '<div class="card muted">No saved games yet. Finish a game and it will show up here.</div>';
+  list.forEach(function(g){
+    h += '<div class="card hgame" data-g="'+g.id+'"><div class="top"><b>'+esc(fmtDate(g.date))+'</b><span class="pill">'+esc(g.winners.join(' & '))+' won</span></div><div class="scores">';
+    g.players.forEach(function(p,i){ h += '<span>'+(g.winners.indexOf(p)!==-1?'<b>':'')+esc(p)+' '+g.totals[i]+(g.winners.indexOf(p)!==-1?'</b>':'')+'</span>'; });
+    h += '</div>';
+    if (openGames[g.id]){
+      h += '<table style="margin-top:10px"><thead><tr><th class="rc">Round</th>';
+      g.players.forEach(function(p){ h += '<th>'+esc(p)+'</th>'; });
+      h += '</tr></thead><tbody>';
+      for (var r=0;r<6;r++){
+        h += '<tr><td class="rc"><b>'+(r+1)+'</b><small>'+esc(ROUNDS[r])+'</small></td>';
+        g.players.forEach(function(p,i){ h += '<td>'+g.scores[r][i]+'</td>'; });
+        h += '</tr>';
+      }
+      h += '<tr class="totals"><td class="rc">Total</td>';
+      g.players.forEach(function(p,i){ h += '<td'+(g.winners.indexOf(p)!==-1?' class="lead"':'')+'>'+g.totals[i]+'</td>'; });
+      h += '</tr></tbody></table>';
+    } else {
+      h += '<div class="note">Tap to see every round</div>';
+    }
+    h += '</div>';
+  });
+  h += '</div>';
+  $('#app').innerHTML = h;
+  var q = $('#q');
+  q.oninput = function(){
+    searchQ = q.value;
+    var pos = q.selectionStart;
+    renderHistory();
+    var nq = $('#q'); nq.focus(); try{ nq.setSelectionRange(pos,pos); }catch(e){}
+  };
+  $$('.hgame').forEach(function(c){ c.onclick = function(){
+    var id = c.getAttribute('data-g'); openGames[id] = !openGames[id]; renderHistory();
+  }; });
+}
+
+/* ---------- names tab ---------- */
+function renderNames(){
+  var h = '<h1>Saved names</h1><div class="card"><div class="row"><input type="text" id="nn" placeholder="Add a name"><button class="primary" id="addn">Add</button></div><div class="err" id="nerr"></div>';
+  if (!S.names.length) h += '<p class="muted">No names saved yet.</p>';
+  h += '<ul class="names">';
+  S.names.forEach(function(n,i){ h += '<li><span>'+esc(n)+'</span><button class="sm danger" data-del="'+i+'">Delete</button></li>'; });
+  h += '</ul><p class="note">Deleting a name only removes it from the dropdown. Past games keep their names.</p></div>';
+
+  h += '<h2>Backup</h2><div class="card"><p class="muted" style="margin-top:0">Your games are stored in this browser on this phone. Export a copy to keep somewhere safe, or paste one in to restore it.</p>';
+  h += '<div class="row" style="margin-bottom:8px"><button id="exp">Show export</button><button id="cpy">Copy</button></div>';
+  h += '<textarea id="io" placeholder="Export appears here. To restore, paste a backup here and tap Import."></textarea>';
+  h += '<div class="row" style="margin-top:8px"><button id="imp" class="primary">Import</button></div>';
+  h += '<div class="muted" style="margin-top:8px">Or choose a backup file:</div><input type="file" id="fil" accept=".json,application/json,text/plain">';
+  h += '<div class="note" id="imsg">'+esc(importMsg)+'</div></div>';
+  $('#app').innerHTML = h;
+
+  function addName(){
+    var v = $('#nn').value.trim();
+    if (!v) return;
+    if (S.names.some(function(n){ return n.toLowerCase()===v.toLowerCase(); })){ $('#nerr').textContent = '"'+v+'" is already in the list.'; return; }
+    S.names.push(v); sortNames(); save(); renderNames();
+  }
+  $('#addn').onclick = addName;
+  $('#nn').onkeydown = function(e){ if (e.key==='Enter') addName(); };
+  $$('[data-del]').forEach(function(b){ b.onclick = function(){
+    var i = +b.getAttribute('data-del');
+    var name = S.names[i];
+    modal('Remove "'+name+'" from the saved names list?', 'Remove', function(){ S.names.splice(i,1); save(); renderNames(); });
+  }; });
+  $('#exp').onclick = function(){
+    exportText = JSON.stringify({names:S.names, games:S.games}, null, 1);
+    $('#io').value = exportText;
+  };
+  $('#cpy').onclick = function(){
+    var ta = $('#io');
+    if (!ta.value){ exportText = JSON.stringify({names:S.names, games:S.games}, null, 1); ta.value = exportText; }
+    var done = function(m){ importMsg = m; $('#imsg').textContent = m; };
+    try {
+      navigator.clipboard.writeText(ta.value).then(function(){ done('Copied.'); }, function(){ ta.select(); done('Copy blocked: the text is selected, use your phone\'s Copy.'); });
+    } catch(e){ ta.select(); done('Copy blocked: the text is selected, use your phone\'s Copy.'); }
+  };
+  function doImport(text){
+    var d;
+    try { d = JSON.parse(text); } catch(e){ importMsg = 'That does not look like a valid backup.'; $('#imsg').textContent = importMsg; return; }
+    if (!d || !Array.isArray(d.games)){ importMsg = 'That does not look like a valid backup.'; $('#imsg').textContent = importMsg; return; }
+    var have = {}; S.games.forEach(function(g){ have[g.id]=true; });
+    var added = 0;
+    d.games.forEach(function(g){
+      if (g && g.id && !have[g.id] && Array.isArray(g.players) && Array.isArray(g.scores) && Array.isArray(g.totals)){
+        g.winners = Array.isArray(g.winners) ? g.winners : [];
+        S.games.push(g); have[g.id]=true; added++;
+      }
+    });
+    (d.names||[]).forEach(function(n){
+      if (typeof n==='string' && !S.names.some(function(x){ return x.toLowerCase()===n.toLowerCase(); })) S.names.push(n);
+    });
+    sortNames(); save();
+    importMsg = 'Imported '+added+' new game'+(added===1?'':'s')+'.';
+    renderNames();
+  }
+  $('#imp').onclick = function(){ doImport($('#io').value); };
+  $('#fil').onchange = function(e){
+    var f = e.target.files && e.target.files[0]; if (!f) return;
+    var rd = new FileReader();
+    rd.onload = function(){ doImport(String(rd.result)); };
+    rd.readAsText(f);
+  };
+}
+
+function render(){
+  document.body.classList.remove('land');
+  renderTabs();
+  if (tab === 'game') renderGame();
+  else if (tab === 'history') renderHistory();
+  else renderNames();
+}
+render();
+try { if (navigator.storage && navigator.storage.persist) navigator.storage.persist(); } catch(e){}
+try { if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(function(){}); } catch(e){}
+})();
+</script>
+</body>
+</html>
