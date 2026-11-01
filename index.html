@@ -147,6 +147,17 @@ body.land .tabs button{padding:10px 0}
 .gw.land .cv .roundtext{margin:0}
 .gw.land .cv .nav button{padding:6px 10px;font-size:15px}
 .gw.land .cv .roundnum{font-size:18px}
+.chips{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:12px}
+.chip{padding:8px 16px;border-radius:99px;font-size:16px}
+.chip.on{background:var(--accent);color:var(--accent-ink);border-color:var(--accent);font-weight:600}
+.modes{display:flex;flex-direction:column;gap:10px;margin-bottom:12px}
+.modes label{display:flex;gap:10px;align-items:flex-start;cursor:pointer}
+.modes input{width:22px;height:22px;flex:none;margin:1px 0 0;accent-color:var(--accent)}
+.wrow{display:flex;align-items:baseline;gap:10px;padding:6px 0;border-bottom:1px solid var(--line)}
+.wrow:last-child{border-bottom:0}
+.wrow .wn{flex:1;font-weight:600}
+.wrow .wc{font-size:22px;font-weight:800;min-width:34px;text-align:right}
+.wrow .wo{min-width:60px}
 </style>
 </head>
 <body>
@@ -187,7 +198,8 @@ var notice = '';
 var setup = {test:false, n:4, slots:['','','','','',''], newText:['','','','','',''], err:''};
 var viewGame = null, viewFrom = 'history';
 var sel = null;
-var searchQ = '';
+var fNames = [];
+var fMode = 'include';
 var exportText = '';
 var importMsg = '';
 
@@ -575,27 +587,74 @@ function gameMatches(g, q){
   var hay = (g.players.join(' ') + ' ' + g.winners.join(' ') + ' ' + fmtDate(g.date) + ' ' + g.date.slice(0,10)).toLowerCase();
   return q.toLowerCase().split(/\s+/).filter(Boolean).every(function(w){ return hay.indexOf(w) !== -1; });
 }
+function historyNames(){
+  var seen = {}, out = [];
+  S.names.concat.apply(S.names, S.games.map(function(g){ return g.players; })).forEach(function(n){
+    var k = n.toLowerCase();
+    if (!seen[k]){ seen[k] = true; out.push(n); }
+  });
+  out.sort(function(a,b){ return a.localeCompare(b, undefined, {sensitivity:'base'}); });
+  return out;
+}
+function gameMatchesFilter(g){
+  if (!fNames.length) return true;
+  var inGame = g.players.map(function(p){ return p.toLowerCase(); });
+  var want = fNames.map(function(p){ return p.toLowerCase(); });
+  var hasAll = want.every(function(p){ return inGame.indexOf(p) !== -1; });
+  if (!hasAll) return false;
+  return fMode === 'only' ? inGame.length === want.length : true;
+}
 function renderHistory(){
-  var h = '<h1>History</h1><input type="search" id="q" placeholder="Search by player or date…" value="'+esc(searchQ)+'">';
-  var list = S.games.slice().sort(function(a,b){ return b.date.localeCompare(a.date); }).filter(function(g){ return gameMatches(g, searchQ); });
+  var names = historyNames();
+  var h = '<h1>History</h1><div class="card"><div class="muted" style="margin-bottom:8px">Show games with:</div><div class="chips">';
+  names.forEach(function(n){
+    var on = fNames.some(function(x){ return x.toLowerCase() === n.toLowerCase(); });
+    h += '<button class="chip'+(on?' on':'')+'" data-n="'+esc(n)+'">'+esc(n)+'</button>';
+  });
+  if (!names.length) h += '<span class="muted">No names yet.</span>';
+  h += '</div><div class="modes">';
+  h += '<label><input type="radio" name="fm" value="include"'+(fMode==='include'?' checked':'')+'><span>Include these players<br><span class="muted">Others may also be in the game</span></span></label>';
+  h += '<label><input type="radio" name="fm" value="only"'+(fMode==='only'?' checked':'')+'><span>Only these players<br><span class="muted">Nobody else in the game</span></span></label>';
+  h += '</div><button class="sm" id="fclear"'+(fNames.length?'':' disabled')+'>Clear</button></div>';
+
+  var list = S.games.slice().sort(function(a,b){ return b.date.localeCompare(a.date); }).filter(gameMatchesFilter);
+
+  // win summary for the games that match
+  var wins = {}, played = {};
+  list.forEach(function(g){
+    g.players.forEach(function(p){
+      played[p] = (played[p]||0) + 1;
+      wins[p] = (wins[p]||0) + (g.winners.indexOf(p) !== -1 ? 1 : 0);
+    });
+  });
+  var rows = Object.keys(played).sort(function(a,b){ return (wins[b]-wins[a]) || a.localeCompare(b, undefined, {sensitivity:'base'}); });
+  h += '<div class="card"><b>Wins in '+(fNames.length?'these':'all')+' '+list.length+' game'+(list.length===1?'':'s')+'</b>';
+  if (fMode==='only' && fNames.length===1) h += '<div class="note">Pick at least 2 names: every game has 2 or more players.</div>';
+  else if (!list.length) h += '<div class="note">No games match.</div>';
+  rows.forEach(function(p){
+    h += '<div class="wrow"><span class="wn">'+esc(p)+'</span><span class="wc">'+wins[p]+'</span><span class="muted wo">of '+played[p]+'</span></div>';
+  });
+  h += '</div>';
+
   h += '<p class="note" id="hcount">'+list.length+' of '+S.games.length+' game'+(S.games.length===1?'':'s')+'</p><div id="hlist">';
   if (!S.games.length) h += '<div class="card muted">No saved games yet. Finish a game and it will show up here.</div>';
   list.forEach(function(g){
     h += '<div class="card hgame" data-g="'+g.id+'"><div class="top"><b>'+esc(fmtDate(g.date))+'</b><span class="pill">'+esc(g.winners.join(' & '))+' won</span></div><div class="scores">';
     g.players.forEach(function(p,i){ h += '<span>'+(g.winners.indexOf(p)!==-1?'<b>':'')+esc(p)+' '+g.totals[i]+(g.winners.indexOf(p)!==-1?'</b>':'')+'</span>'; });
-    h += '</div>';
-    h += '<div class="note">Tap to open the score sheet</div>';
-    h += '</div>';
+    h += '</div><div class="note">Tap to open the score sheet</div></div>';
   });
   h += '</div>';
   $('#app').innerHTML = h;
-  var q = $('#q');
-  q.oninput = function(){
-    searchQ = q.value;
-    var pos = q.selectionStart;
+
+  $$('.chip').forEach(function(c){ c.onclick = function(){
+    var n = c.getAttribute('data-n');
+    var i = -1;
+    fNames.forEach(function(x,k){ if (x.toLowerCase() === n.toLowerCase()) i = k; });
+    if (i === -1) fNames.push(n); else fNames.splice(i,1);
     renderHistory();
-    var nq = $('#q'); nq.focus(); try{ nq.setSelectionRange(pos,pos); }catch(e){}
-  };
+  }; });
+  $$('input[name=fm]').forEach(function(r){ r.onchange = function(){ fMode = r.value; renderHistory(); }; });
+  $('#fclear').onclick = function(){ fNames = []; renderHistory(); };
   $$('.hgame').forEach(function(c){ c.onclick = function(){
     viewGame = c.getAttribute('data-g'); viewFrom = 'history'; render(); window.scrollTo(0,0);
   }; });
