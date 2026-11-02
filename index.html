@@ -158,6 +158,7 @@ body.land .tabs button{padding:10px 0}
 .wrow .wn{flex:1;font-weight:600}
 .wrow .wc{font-size:22px;font-weight:800;min-width:34px;text-align:right}
 .wrow .wo{min-width:60px}
+.lastp{font-size:20px;font-weight:700;margin:4px 0 12px}
 </style>
 </head>
 <body>
@@ -331,6 +332,11 @@ function renderTabs(){
 function renderSetup(){
   var h = '<h1>Contract</h1>';
   if (notice){ h += '<div class="card lead">'+esc(notice)+'</div>'; notice = ''; }
+  var lp = lastPlayers();
+  if (lp){
+    h += '<div class="card"><div class="muted">Same players as the last game</div><div class="lastp">'+esc(lp.join(', '))+'</div><button class="primary" id="same" style="width:100%">Start with the same players</button></div>';
+    h += '<div class="muted" style="margin:4px 2px 8px">Or start from scratch:</div>';
+  }
   h += '<div class="card">'+(TEST_MODE_ENABLED ? '<label class="row" style="margin-bottom:12px;gap:10px"><input type="checkbox" id="testmode" style="flex:none;width:22px;height:22px"'+(setup.test?' checked':'')+'><span><b>Test mode</b><br><span class="muted">Game will NOT be saved to History</span></span></label>' : '')+'<div class="muted" style="margin-bottom:8px">Number of players</div><div class="counts">';
   for (var n=2;n<=6;n++) h += '<button data-n="'+n+'" class="'+(setup.n===n?'on':'')+'">'+n+'</button>';
   h += '</div>';
@@ -350,6 +356,7 @@ function renderSetup(){
   $$('[data-newtext]').forEach(function(t){ t.oninput = function(){ setup.newText[+t.getAttribute('data-newtext')] = t.value; }; });
   if (TEST_MODE_ENABLED) $('#testmode').onchange = function(){ setup.test = this.checked; };
   $('#start').onclick = startGame;
+  if ($('#same')) $('#same').onclick = function(){ beginGame(lastPlayers(), false); };
 }
 function startGame(){
   var players = [];
@@ -364,11 +371,25 @@ function startGame(){
     if (seen[k]){ setup.err = 'Each player needs a different name ("'+players[j]+'" is used twice).'; $('#serr').textContent = setup.err; return; }
     seen[k] = true;
   }
-  players.forEach(function(p){
-    var exists = S.names.some(function(n){ return n.toLowerCase() === p.toLowerCase(); });
-    if (!exists) S.names.push(p);
-  });
-  sortNames();
+  beginGame(players, true);
+}
+
+function lastPlayers(){
+  if (S.lastPlayers && S.lastPlayers.length) return S.lastPlayers;
+  var latest = null;
+  S.games.forEach(function(g){ if (!latest || g.date > latest.date) latest = g; });
+  return latest ? latest.players : null;
+}
+
+function beginGame(players, addNames){
+  if (addNames){
+    players.forEach(function(p){
+      var exists = S.names.some(function(n){ return n.toLowerCase() === p.toLowerCase(); });
+      if (!exists) S.names.push(p);
+    });
+    sortNames();
+  }
+  S.lastPlayers = players.slice();
   var scores = [];
   for (var r=0;r<6;r++){ var row=[]; for (var q=0;q<players.length;q++) row.push(null); scores.push(row); }
   sel = null;
