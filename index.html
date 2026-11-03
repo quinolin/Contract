@@ -159,6 +159,20 @@ body.land .tabs button{padding:10px 0}
 .wrow .wc{font-size:22px;font-weight:800;min-width:34px;text-align:right}
 .wrow .wo{min-width:60px}
 .lastp{font-size:20px;font-weight:700;margin:4px 0 12px}
+.dealerline{text-align:center;font-size:16px;color:var(--muted);margin:0 0 2px}
+.dealerline b{color:var(--ink)}
+.gw.land .dealerline{font-size:13px}
+.gw.tight .hint{display:none !important}
+.gw.tight .pad{gap:4px}
+.gw.tight .pad button{height:34px;font-size:18px}
+.gw.tight .cv .head{padding:4px 6px;margin-bottom:6px}
+.gw.tight .cv .nav button{padding:6px 10px;font-size:15px}
+.gw.tight .cv .roundnum{font-size:19px}
+.gw.tight .dealerline{font-size:13px}
+.gw.tight .cv .roundtext{margin:0}
+.gw.tight .seg button{padding:7px 10px}
+.gw.tight .endbtn{padding:8px 14px}
+.gw.land.tight .pad button{height:auto}
 </style>
 </head>
 <body>
@@ -196,7 +210,7 @@ var tab = 'game';
 // Set to true to bring back the Test mode checkbox on the New game screen.
 var TEST_MODE_ENABLED = false;
 var notice = '';
-var setup = {test:false, n:4, slots:['','','','','',''], newText:['','','','','',''], err:''};
+var setup = {dealer:0, sdealer:0, test:false, n:4, slots:['','','','','',''], newText:['','','','','',''], err:''};
 var viewGame = null, viewFrom = 'history';
 var sel = null;
 var fNames = [];
@@ -329,12 +343,17 @@ function renderTabs(){
 }
 
 /* ---------- game tab ---------- */
+function slotName(i){
+  var v = setup.slots[i] === '__new__' ? (setup.newText[i] || '').trim() : setup.slots[i];
+  return v || ('Player ' + (i+1));
+}
 function renderSetup(){
+  if (setup.dealer >= setup.n) setup.dealer = 0;
   var h = '<h1>Contract</h1>';
   if (notice){ h += '<div class="card lead">'+esc(notice)+'</div>'; notice = ''; }
   var lp = lastPlayers();
   if (lp){
-    h += '<div class="card"><div class="muted">Same players as the last game</div><div class="lastp">'+esc(lp.join(', '))+'</div><button class="primary" id="same" style="width:100%">Start with the same players</button></div>';
+    h += '<div class="card"><div class="muted">Same players as the last game</div><div class="lastp">'+esc(lp.join(', '))+'</div><div class="slot"><label>Who deals first?</label><select id="sdealer">'+lp.map(function(n,i){ return '<option value="'+i+'"'+(setup.sdealer===i?' selected':'')+'>'+esc(n)+'</option>'; }).join('')+'</select></div><button class="primary" id="same" style="width:100%">Start with the same players</button></div>';
     h += '<div class="muted" style="margin:4px 2px 8px">Or start from scratch:</div>';
   }
   h += '<div class="card">'+(TEST_MODE_ENABLED ? '<label class="row" style="margin-bottom:12px;gap:10px"><input type="checkbox" id="testmode" style="flex:none;width:22px;height:22px"'+(setup.test?' checked':'')+'><span><b>Test mode</b><br><span class="muted">Game will NOT be saved to History</span></span></label>' : '')+'<div class="muted" style="margin-bottom:8px">Number of players</div><div class="counts">';
@@ -347,16 +366,25 @@ function renderSetup(){
     if (setup.slots[i]==='__new__') h += '<input type="text" data-newtext="'+i+'" placeholder="Type a name" value="'+esc(setup.newText[i])+'">';
     h += '</div>';
   }
+  h += '<div class="slot"><label>Who deals first?</label><select id="dealer">';
+  for (var di=0; di<setup.n; di++) h += '<option value="'+di+'"'+(setup.dealer===di?' selected':'')+'>'+esc(slotName(di))+'</option>';
+  h += '</select></div>';
   h += '<div class="err" id="serr">'+esc(setup.err)+'</div>';
   h += '<button class="primary" id="start" style="width:100%;margin-top:8px">Start game</button></div>';
   $('#app').innerHTML = h;
 
   $$('[data-n]').forEach(function(b){ b.onclick = function(){ setup.n = parseInt(b.getAttribute('data-n'),10); setup.err=''; render(); }; });
   $$('[data-slot]').forEach(function(s){ s.onchange = function(){ setup.slots[+s.getAttribute('data-slot')] = s.value; setup.err=''; render(); }; });
-  $$('[data-newtext]').forEach(function(t){ t.oninput = function(){ setup.newText[+t.getAttribute('data-newtext')] = t.value; }; });
+  $$('[data-newtext]').forEach(function(t){ t.oninput = function(){
+    var i = +t.getAttribute('data-newtext');
+    setup.newText[i] = t.value;
+    var o = $('#dealer option[value="'+i+'"]'); if (o) o.textContent = slotName(i);
+  }; });
+  $('#dealer').onchange = function(){ setup.dealer = +this.value; };
+  if ($('#sdealer')) $('#sdealer').onchange = function(){ setup.sdealer = +this.value; };
   if (TEST_MODE_ENABLED) $('#testmode').onchange = function(){ setup.test = this.checked; };
   $('#start').onclick = startGame;
-  if ($('#same')) $('#same').onclick = function(){ beginGame(lastPlayers(), false); };
+  if ($('#same')) $('#same').onclick = function(){ beginGame(lastPlayers(), false, setup.sdealer); };
 }
 function startGame(){
   var players = [];
@@ -371,7 +399,7 @@ function startGame(){
     if (seen[k]){ setup.err = 'Each player needs a different name ("'+players[j]+'" is used twice).'; $('#serr').textContent = setup.err; return; }
     seen[k] = true;
   }
-  beginGame(players, true);
+  beginGame(players, true, setup.dealer);
 }
 
 function lastPlayers(){
@@ -381,7 +409,7 @@ function lastPlayers(){
   return latest ? latest.players : null;
 }
 
-function beginGame(players, addNames){
+function beginGame(players, addNames, dealer){
   if (addNames){
     players.forEach(function(p){
       var exists = S.names.some(function(n){ return n.toLowerCase() === p.toLowerCase(); });
@@ -393,8 +421,9 @@ function beginGame(players, addNames){
   var scores = [];
   for (var r=0;r<6;r++){ var row=[]; for (var q=0;q<players.length;q++) row.push(null); scores.push(row); }
   sel = null;
-  S.current = {id:uid(), started:new Date().toISOString(), players:players, scores:scores, view:'scores', ri:0, test:setup.test};
+  S.current = {id:uid(), started:new Date().toISOString(), players:players, scores:scores, view:'scores', ri:0, test:setup.test, dealer:(dealer||0)};
   save();
+  setup.dealer = 0; setup.sdealer = 0;
   setup.slots = ['','','','','',''];
   setup.newText = ['','','','','',''];
   setup.err = '';
@@ -447,7 +476,9 @@ function renderGame(){
   } else {
     var ri = (typeof g.ri === 'number') ? g.ri : open;
     h += '<div class="cv"><div class="head"><div class="nav"><button id="prev" '+(ri===0?'disabled':'')+'>‹ Prev</button><div class="roundnum">Round '+(ri+1)+' of 6</div><button id="next" '+((ri===5||!roundComplete(g.scores,ri,np))?'disabled':'')+'>Next ›</button></div>';
-    h += '<div class="roundtext">'+esc(ROUNDS[ri])+'</div></div><div class="plist">';
+    h += '<div class="roundtext">'+esc(ROUNDS[ri])+'</div>';
+    if (typeof g.dealer === 'number') h += '<div class="dealerline">Dealer: <b>'+esc(g.players[(g.dealer + ri) % np])+'</b></div>';
+    h += '</div><div class="plist">';
     for (var p2=0;p2<np;p2++){
       h += '<div class="prow"><div class="nm">'+esc(g.players[p2])+'</div><div class="tt">Total <b data-total="'+p2+'">0</b></div>'+scoreBox(ri,p2,g.scores[ri][p2])+'</div>';
     }
@@ -554,19 +585,26 @@ function fit(){
     grid.style.setProperty('--tlf', clamp(Math.min(nf, (rcW-6)/(5*0.62)), 8, 18)+'px');
   }
   var rtx = $('.roundtext');
-  if (rtx){
-    var rf = landscape ? 24 : 34;
+  var cv = $('.cv'), pl = $('.plist');
+  function sizeRound(base){
+    if (!rtx) return;
+    var rf = base;
     rtx.style.fontSize = rf + 'px';
     while (rtx.scrollWidth > rtx.clientWidth && rf > 16){ rf--; rtx.style.fontSize = rf + 'px'; }
   }
-  var cv = $('.cv'), pl = $('.plist');
+  gw.classList.remove('tight');
+  sizeRound(landscape ? 24 : 34);
+  if (cv && pl && pl.clientHeight < np*36 + (np-1)*8){
+    gw.classList.add('tight');
+    sizeRound(landscape ? 20 : 26);
+  }
   if (cv && pl){
-    var rh = clamp((pl.clientHeight - (np-1)*8)/np, 32, 66), w = pl.clientWidth;
+    var rh = clamp((pl.clientHeight - (np-1)*8)/np, 24, 66), w = pl.clientWidth;
     cv.style.setProperty('--rh', rh+'px');
-    cv.style.setProperty('--ih', clamp(rh*0.82, 28, 56)+'px');
-    cv.style.setProperty('--sf', clamp(rh*0.46, 15, 30)+'px');
-    cv.style.setProperty('--nf', clamp(Math.min(rh*0.34, (w*0.42)/(maxLen*0.58), 26), 13, 26)+'px');
-    cv.style.setProperty('--tf', clamp(rh*0.24, 12, 17)+'px');
+    cv.style.setProperty('--ih', clamp(rh*0.82, 20, 56)+'px');
+    cv.style.setProperty('--sf', clamp(rh*0.46, 13, 30)+'px');
+    cv.style.setProperty('--nf', clamp(Math.min(rh*0.34, (w*0.42)/(maxLen*0.58), 26), 11, 26)+'px');
+    cv.style.setProperty('--tf', clamp(rh*0.24, 11, 17)+'px');
   }
 }
 var lastW = window.innerWidth;
@@ -590,7 +628,7 @@ function endGame(){
   var lead = leaders(res.t, true);
   var rec = {
     id:g.id, date:new Date().toISOString(), started:g.started, players:g.players,
-    scores:g.scores, totals:res.t,
+    scores:g.scores, totals:res.t, dealer:g.dealer,
     winners: lead.map(function(i){ return g.players[i]; })
   };
   S.games.push(rec);
